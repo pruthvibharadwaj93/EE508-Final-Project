@@ -1,19 +1,290 @@
---
-title: "EE508 Final Project Report"
+---
+title: "EE508 Final Project Report: Comparison of effectiveness of Voluntary vs Fee based conservation"
 author: "Pruthvi Bharadwaj"
-date: "12/10/2021"
 output: pdf_document
 ---
 
+Access the codes at : [github: https://github.com/pruthvibharadwaj93/EE508-Final-Project]
 
-Access the codes at : [github: https://github.com/pruthvibharadwaj93/MA-678-Midterm-Project---Accidents-Analysis]
-```{r}
-plot(cars)
+## A matching approach to assess and compare the effectiveness of Voluntary, Permanent land protection against Fee based land conservation in Massachusetts
+
+## Abstract
+There are 2 popular conservation instruments used to conserve land in Massachusetts, namely, Voluntary, permanent land protection(VPLP) and fee based easement creation. 
+In this study, I use a dataset that consists of 220,187 land parcels in Massachusetts and 2 different landcover rasters obtained from LCMAP and NLCD to conduct the impact analysis of VPLP and fee based conservation. A quasi-experimental matching method is used for the impact analysis. Along with comparison of the 2 conservation instruments I also compare the results from 2 land cover datasets to identify the differences between them.
+It is found that fee based protection mechanism is slightly better than easement based protection mechanism at having a positive impact on forest cover change. 
+
+
+## Introduction
+In the state of Massachusetts there are primarily 2 types of conservation instruments in place to protect lands. They are:
+
+One, Voluntary, permanent protection of land through creation of easements by multiple, decentralized actors. This an important conservation process in many parts of the world. Over the past two decades, willing private landowners have transferred ownership or partial rights to millions of hectares of land to governments and conservation nongovernmental organizations (NGOs), often in response to financial incentives (Parker & Thurman, 2018).
+The transactions are considered “voluntary” if landowners have the option to not give up their land rights, and “permanent,” if the transaction does not oblige recipients to return the land rights in the future. VPLP occurs for diverse reasons, including species conservation, local recreation, the preservation of cultural landscapes, and, more recently, the maintenance of carbon stocks. It can involve full acqui- sition by NGOs or public actors or the transfer of partial rights (known as “conservation restrictions” in Massachusetts, and “conservation easements” elsewhere in the United States).
+
+Two, Fee based conservation mechanisms which includes compulsory approaches like regulatory zoning/enforcement, voluntary, non-permanent protection, such as payments for environmental services (PES) and alternative income generation strategies that grant or clarify land rights, such as indigenous lands.
+
+Impact of conservation is the difference between observed outcomes in the presence of an intervention and outcomes that would have occurred in its absence. The impact of the different mechanisms on conservation have been studied in various studies. 
+It is the belief that placing conservation restrictions on lands reduces forest loss on lands. 
+In this study I focus on comparison of impacts on forest change due to 2 different conservation instruments namely voluntary vs fee based conservation. This comparison is important as it informs policy makers on the effectiveness of the 2 types of conservation instruments and also helps in choosing the best areas in terms of impact and cost when it comes to fee based conservation.  
+
+Secondly I focus on comparing the impact estimates derived using 2 different landcover datasets namely LCMAP and NLCD. This comparison is important to understand the differences in the 2 datasets so that the most apporpriate one can be chosen for studies consercing landcover changes.
+
+Our study area, Massachusetts, is an exemplar of the private land conservation movement in the United States, with 120 active land trusts (Land Trust Alliance, 2016), substantial direct public funding ($53 million annually, 1998– 2011) (The Trust for Public Land, 2017), and tax incentives for charitable land donations. As with much of New England, Massachusetts experienced two centuries of deforestation, followed by 150 years of forest regrowth, and, since the 1980s, a slow but continuous loss of forest cover, mostly due to low-density development. 
+
+A rich parcel dataset from the entire state and a matching approach are used to quantify the effects of conservation on forest cover change in Massachusetts. 
+
+## Methodology
+
+### Data
+
+Multiple datasets were used in this project. A parcel level data for the state of Massachusetts consisting of 220,187 land parcels was used as the base land unit layer. The dataset was obtained from PLACES (Nolte, personal communication, 2019) and it included variables at a parcel-level with synthesized conservation and building-related information for all municipalities in Massachusetts except Boston.
+
+Since one of the objectives of this study is the comparison of results from 2 different landcover datasets, I used 2 sets of rasters, one from LCMAP and the other from NLCD. 
+
+The National Land Cover Database (NLCD) provides nationwide data on land cover and land cover change at a 30m resolution with a 16-class legend based on a modified Anderson Level II classification system.
+
+The LCMAP project contains an integrated suite of annual land cover and land surface change products for the Conterminous United States based on time series data from the Landsat record from 1985–2019. LCMAP Collection 1.1 Science Products are based on the USGS implementation of the Continuous Change Detection and Classification (CCDC) algorithm.
+
+In combination, LCMAP and NLCD provide a comprehensive suite of land change data datasets, capable of characterizing changes in land cover (thematic land cover classes), as well as more subtle changes related to land cover condition, with each product providing a slightly different piece of information on the land surface state or condition. 
+
+Data from NLCD was available only for certain years. Hence I used landcover data only for these years from both the sources. The years were 2001, 2004, 2006, 2008, 2011, 2013, 2016 and 2019.
+
+
+### Data Preparation
+
+Both the rasters were initially available for the entire continental USA. Since the rasters were huge in size, I first cropped the rasters using QGIS to include only the area of Massachusetts. 
+
+The next step was to process these rasters in Python to compute landcover at a parcel level. I used the zonal stats function with categorical attribute set to true to compute the landcover metrics at a parcel level and added the different land cover types as columns in the parcel file after the necessary processing. 
+
+The percentage change in forest cover was computed by subtracting the forest cover in the parcel in 2016 from forest cover in 2016. 
+
+Parcels that had a higher percentage of land under easement conservation than fee conservation were tagged as easement protected lands (VPLP) and vice versa. 
+Parcels that were never protected (protected land percentage under 20%) were pooled into the control group.
+Parcels that had more than 80% protection under either easement or fee protection were pooled into treatment groups.
+Only parcels that were protected between 1985 and 2012 were considered under the treatment groups.
+Some of the covariates that were used in Matching were transformed before Matching. These are area of the plot(ha), traveltime to cities(travel), length of river or lake frontage in the parcel(river_lake_frontage) and population density of parcel in 1990 (pop_dens_bg_1990). 
+
+
+```{r include = FALSE}
+library(Matching)
+
+ma <- read.csv(file = "/Users/pruthvibharadwaj/Desktop/Fall 21/EE508 - DS for Conservation Decisions/Final Project/Data/ZS/MA_final.csv")
+
+for (v in c('p_wet', 'p_e', 'p_f', 'e_p', 'f_p', 'p_prot','coast_2500', 'river_frontage', 'lake_frontage', 'lake_ha','slope','travel','ha','hh_inc_med_bg_1990','pop_dens_bg_1990')) {
+    ma[is.na(ma[v]),v] <- 0
+  }
+
+ma$pc_lcmap_16_19 <- ma$p_f_2019_lcmap - ma$p_f_2016_lcmap
+ma$pc_nlcd_16_19 <- ma$p_f_2019_nlcd - ma$p_f_2016_nlcd
+
+#Assigning the protection mechanism to land parcels
+
+ma$protmech <- ifelse(ma$e_p >= ma$f_p & ma$e_p > 0, 'e', ifelse(ma$f_p > 0 & (if(T) T else ma$f_fee_prot==1), 'f', NA))
+
+ma$p_prot_protmech <- ifelse(ma$protmech=='e', ma$e_p, ifelse(ma$protmech=='f', ma$f_p, NA))
+
+ma$tr_year <- ifelse(ma$protmech=='e', ma$e_year, ifelse(ma$protmech=='f', ma$f_year, NA))
+
+#unprotected lands
+
+ma$ct <- ifelse(ma$p_prot < 20, 1, 0)
+
+#lands protected by easement
+
+ma$e_tr <- ifelse(ma$protmech=='e' & ma$p_prot_protmech > 80 & !is.na(ma$tr_year) & ma$tr_year >= 1985 & ma$tr_year <= 2012, 1, 0)
+
+#lands protected by payment
+
+ma$f_tr <- ifelse(ma$protmech=='f' & ma$p_prot_protmech > 80 & !is.na(ma$tr_year) & ma$tr_year >= 1985 & ma$tr_year <= 2012, 1, 0)
+
+ma$ha_log <- log(ma$ha)
+ma$travel_asinh <- asinh(ma$travel)
+ma$river_lake_frontage <- ma$river_frontage + ifelse(ma$lake_ha > 1, ma$lake_front, 0)
+ma$river_lake_frontage_asinh <- asinh(ma$river_lake_frontage)
+ma$pop_dens_bg_1990_asinh <- asinh(ma$pop_dens_bg_1990)
+
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+```{r include = FALSE}
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+ma.ct <- ma[ma$ct==1, ]
+ma.etr <- ma[ma$e_tr==1, ]
+ma.ftr <- ma[ma$f_tr==1, ]
 
+ma.ftr$tr <- 1
+ma.etr$tr <- 1
+ma.ct$tr <- 0
+
+```
+
+
+```{r include = FALSE}
+
+ma.f.in <- rbind(ma.ftr, ma.ct)
+ma.e.in <- rbind(ma.etr, ma.ct)
+
+cov <- c('slope', 'travel_asinh', 'ha_log', 'hh_inc_med_bg_1990', 'p_wet', 'pop_dens_bg_1990_asinh', 'coast_2500','river_lake_frontage_asinh') 
+```
+
+### Matching Analysis
+Matching is a quasi-experimental process that pairs a treated unit with an untreated unit which has similar observable characteristics. 
+The goal of matching is to reduce bias for the estimated treatment effect in an observational-data study, by finding, for every treated unit, one (or more) non-treated unit(s) with similar observable characteristics against who the covariates are balanced out. By matching treated units to similar non-treated units, matching enables a comparison of outcomes among treated and non-treated units to estimate the effect of the treatment thereby reducing bias due to confounding.
+Eight variables were chosen for matching based on the study conducted by Nolte et al 2019 on impact of VPLP conservation. They are namely, slope, travel time, area of the plor, percent of wetland in the parcel, population density of the parcel in 1990, median household income of the parcel in 1990, length of river or lake frontage in the parcel and length of coastline in the parcel. 
+Matching was performed with calipers of 0.5 standard deviations and the bias adjustment parameter was set to true.
+For fee based conservation there were totally 4475 parcels in the treatment pool. These are the parcels that had a 80%+ fee based conservation which was implemented between 1985 and 2012. Out of these, 4014 parcels had a match from the control pool consisting of 183983 parcels.
+For easement based conservation there were totally 4584 parcels in the treatment pool. These are the parcels that had a 80%+ easement based conservation which was implemented between 1985 and 2012. Out of these, 4244 parcels had a match from the control pool consisting of 183983 parcels.
+
+
+```{r include = FALSE}
+
+#Bias adjustment
+#Matching Fee based treatment units
+
+#LCMAP
+ma_lcmap_f_ba <- Match(ma.f.in$pc_lcmap_16_19, ma.f.in$tr, ma.f.in[, cov], BiasAdjust=T, caliper = 0.5)
+#NLCD
+ma_nlcd_f_ba <- Match(ma.f.in$pc_nlcd_16_19, ma.f.in$tr, ma.f.in[, cov], BiasAdjust=T, caliper = 0.5)
+
+#Matching easement based treatment units
+#LCMAP
+ma_lcmap_e_ba <- Match(ma.e.in$pc_lcmap_16_19, ma.e.in$tr, ma.e.in[, cov], BiasAdjust=T, caliper = 0.5)
+#NLCD
+ma_nlcd_e_ba <- Match(ma.e.in$pc_nlcd_16_19, ma.e.in$tr, ma.e.in[, cov], BiasAdjust=T, caliper = 0.5)
+
+```
+
+
+```{r include = FALSE}
+#FEE-LCMAP
+ma.f.in.m.lcmap <- rbind(ma.f.in[ma_lcmap_f_ba$index.treated, ], ma.f.in[ma_lcmap_f_ba$index.control, ])
+
+ma.f.in.m.lcmap$group <- ifelse(ma.f.in.m.lcmap$tr, 'treatment units', 'matched controls')
+
+#FEE-NLCD
+ma.f.in.m.nlcd <- rbind(ma.f.in[ma_nlcd_f_ba$index.treated, ], ma.f.in[ma_nlcd_f_ba$index.control, ])
+
+ma.f.in.m.nlcd$group <- ifelse(ma.f.in.m.nlcd$tr, 'treatment units', 'matched controls')
+
+#EASEMENT-LCMAP
+ma.e.in.m.lcmap <- rbind(ma.e.in[ma_lcmap_e_ba$index.treated, ], ma.e.in[ma_lcmap_e_ba$index.control, ])
+
+ma.e.in.m.lcmap$group <- ifelse(ma.e.in.m.lcmap$tr, 'treatment units', 'matched controls')
+
+
+#EASEMENT-NLCD
+ma.e.in.m.nlcd <- rbind(ma.e.in[ma_nlcd_e_ba$index.treated, ], ma.e.in[ma_nlcd_e_ba$index.control, ])
+
+ma.e.in.m.nlcd$group <- ifelse(ma.e.in.m.nlcd$tr, 'treatment units', 'matched controls')
+
+```
+
+
+```{r include = FALSE}
+
+#EASEMENT-NLCD
+ma.e.in.mb.nlcd <- MatchBalance(tr ~ slope + travel_asinh + ha_log + hh_inc_med_bg_1990 + p_wet + pop_dens_bg_1990_asinh + coast_2500 + river_lake_frontage_asinh , data=ma.e.in, match.out=ma_nlcd_e_ba, nboots=0)
+
+#EASEMENT-LCMAP
+ma.e.in.mb.lcmap <- MatchBalance(tr ~ slope + travel_asinh + ha_log + hh_inc_med_bg_1990 + p_wet + pop_dens_bg_1990_asinh + coast_2500 + river_lake_frontage_asinh , data=ma.e.in, match.out=ma_lcmap_e_ba, nboots=0)
+
+#FEE-NLCD
+ma.f.in.mb.nlcd <- MatchBalance(tr ~ slope + travel_asinh + ha_log + hh_inc_med_bg_1990 + p_wet + pop_dens_bg_1990_asinh + coast_2500 + river_lake_frontage_asinh , data=ma.f.in, match.out=ma_nlcd_f_ba, nboots=0)
+
+#FEE-LCMAP
+ma.f.in.mb.lcmap <- MatchBalance(tr ~ slope + travel_asinh + ha_log + hh_inc_med_bg_1990 + p_wet + pop_dens_bg_1990_asinh + coast_2500 + river_lake_frontage_asinh , data=ma.f.in, match.out=ma_lcmap_f_ba, nboots=0)
+
+```
+
+```{r include = FALSE}
+
+
+smd_am_e_lcmap <- c()
+for (i in 1:length(cov)) {
+  smd_am_e_lcmap <- c(smd_am_e_lcmap, ma.e.in.mb.lcmap$AfterMatching[[i]]$sdiff)
+}
+
+smd_am_e_nlcd <- c()
+for (i in 1:length(cov)) {
+  smd_am_e_nlcd <- c(smd_am_e_nlcd, ma.e.in.mb.nlcd$AfterMatching[[i]]$sdiff)
+}
+
+smd_am_f_lcmap <- c()
+for (i in 1:length(cov)) {
+  smd_am_f_lcmap <- c(smd_am_f_lcmap, ma.f.in.mb.lcmap$AfterMatching[[i]]$sdiff)
+}
+
+smd_am_f_nlcd <- c()
+for (i in 1:length(cov)) {
+  smd_am_f_nlcd <- c(smd_am_f_nlcd, ma.f.in.mb.nlcd$AfterMatching[[i]]$sdiff)
+}
+
+```
+
+
+## Results
+
+| Conservation Type/ Landcover data | Estimated forest loss % (tr. vs ct.) | Standard Error | p-value | Avg. abs. SMD of covariates |
+| :--: | :--: |  :--: | :--: | :--: |
+| Easement:NLCD | 0.003133 | 0.00074284 | 2.4698e-05 | 0.5351723 |
+| Easement:LCMAP | 0.0027203 | 0.00069854 | 9.8495e-05  | 0.5351723 |
+| Fee:NLCD | 0.0041373 | 0.00072871 | 1.3667e-08 | 0.8114075 |
+| Fee:LCMAP | 0.0040148 | 0.00057299 | 2.4405e-12 | 0.8114075 |
+
+Matching results can be seen in the table above. It is observed that LCMAP estimations of forest cover change are slightly lower than NLCD estimations of forest cover change for both easement and fee based conservation units. The estimations for all 4 matching sets are significant at p  < 0.05 level. 
+
+On average, according to NLCD data, treated parcels with easements had a ~0.0031 pp increase in forest cover during the 2016-2019 timeframe when compared to untreated parcels (according to LCMAP data the same number is 0.0027 pp increase).
+
+Similarly, on average, according to NLCD data, treated parcels with fee based conservation had a ~0.0041 pp increase in forest cover during the 2016-2019 timeframe when compared to untreated parcels (according to LCMAP data the same number is 0.0040 pp increase).
+
+## Discussion
+
+The estimates obtained through matching for fee based and easement based conservation instruments are in line with what is expected and are a little surprising as well. According to well established results from prior studies it is known that protection mechanisms are successful in reducing forest cover loss. The same is reflected in the results above as we clearly see protected lands faring better than unprotected lands when it comes to forest cover change. In fact it seems like forest cover has increased in our evaluation time in the protected lands. This is the case in both types of protections and it indicates that protection mechanisms are not only successful in reducing forest cover loss but they infact result in forest cover increase. 
+
+The difference in effectiveness of fee based and easement based protection mechanisms is worth noting. It implies that fee based mechanism is more successful than easement based mechanism in increasing forest cover. This could be the case because the protection could be more stringent in fee based parcels and there could also be availability of more resources in fee based parcels to plant more trees. 
+
+The other point of difference to be noted is the difference between LCMAP and NLCD results. LCMAP estimates are slightly lower than NLCD estimates. The implication of this is not straightforward to understand and it would require another study which includes another popular landcover dataset by Olofsson so that the most accurate data source can be determined.
+
+The results above are based on a very simple approach that doesn't take into account a lot of factors and for a future study it would be desirable to use a more rigorous methodology. 
+
+
+## Conclusion
+
+The matching results indicate that fee based conservation is slightly more effective than easement based conservation which are both better than no conservation at all in having a positive effect on forest cover change. There is also a slight difference in estimated obtained through NLCD and LCMAP datasets. Continued development of this work with matching as a quasi-experimental method may be of particular interest to policymakers and conservation planners looking to quantify the effect of conservation and greening initiatives or potentially implement new ones.
+
+
+## References
+
+https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/8RCE84
+
+https://www.mrlc.gov/data/nlcd-land-cover-conus-all-years
+
+https://eros.usgs.gov/lcmap/apps/data-downloads
+
+Taylor Perez, Local Conservation as a Determinant of Housing Prices: A Matching Approach to Assessing the Amenity Value of Nearby Conservation in Massachusetts
+
+Christoph Nolte et al., Voluntary, permanent land protection reduces forest loss and development in a rural-urban landscape
+
+\newpage
+## Appendix
+
+### Summary of results 
+
+### FEE:LCMAP
+```{r echo=FALSE}
+summary(ma_lcmap_f_ba)
+```
+
+### FEE:NLCD
+```{r echo=FALSE}
+summary(ma_nlcd_f_ba)
+```
+
+### EASEMENT:LCMAP
+```{r echo=FALSE}
+summary(ma_lcmap_e_ba)
+```
+
+### EASEMENT:NLCD
+```{r echo=FALSE}
+summary(ma_nlcd_e_ba)
+```
